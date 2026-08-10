@@ -12,6 +12,7 @@ Two audiences, one document. Everything is written so the first group can follow
 ## Table of contents
 
 - [Before you start: corporate Windows is not a personal Mac](#before-you-start-corporate-windows-is-not-a-personal-mac)
+- [How to run the commands in this guide](#how-to-run-the-commands-in-this-guide)
 - [Phase 1 — Preflight](#phase-1--preflight)
   - [1. Confirm Windows and available disk space](#1-confirm-windows-and-available-disk-space)
   - [2. Confirm winget](#2-confirm-winget)
@@ -88,6 +89,26 @@ This guide gives a normal path and, where useful, a corporate-safe fallback. **A
 
 ---
 
+## How to run the commands in this guide
+
+Windows shows several similarly named apps and shells, and mixing them up is the single most common source of confusion for a new Windows developer. This section untangles the names, then defines the label that appears above every command block so there is never a question about where to type something.
+
+The three names to keep straight:
+
+- **Terminal** (also called **Windows Terminal** — same app) — a terminal *application*: a window with tabs that hosts shells. It is where all your work happens from Phase 4 onward. macOS analogy: iTerm2 / Terminal.app.
+- **PowerShell** — the *shell*: the program that actually interprets your commands. macOS analogy: zsh. Windows ships with the legacy **Windows PowerShell 5.1** (the app named "Windows PowerShell" in the Start menu); Phase 4 installs the modern **PowerShell 7** and makes it Terminal's default.
+- **Command Prompt** (`cmd.exe`) — Windows' older shell. This guide never uses it; do not type any of these commands into it.
+
+Every runnable command block below carries one of these labels:
+
+- **Run in: PowerShell** — any PowerShell window works. Before Phase 4, open **Windows PowerShell** from the Start menu; once Terminal is set up in Phase 4, just use Terminal.
+- **Run in: Terminal (PowerShell 7)** — open the **Terminal** app, which starts PowerShell 7 by default after step 11. Used from Phase 5 onward, and it matters most in Phases 9–10 because PowerShell 5.1 and 7 keep separate `$PROFILE` files.
+- **Run in: PowerShell as Administrator** — an elevated PowerShell window. Right-click the app in the Start menu and choose **Run as administrator**.
+
+Blocks labeled **File contents** are text that goes into a file — do not type them into a shell. Blocks introduced with wording like "You should see" show expected output, not commands.
+
+---
+
 ## Phase 1 — Preflight
 
 Before installing anything, confirm the machine has what the rest of the guide depends on: a current Windows build, enough free disk space, and a working package manager.
@@ -96,15 +117,19 @@ Before installing anything, confirm the machine has what the rest of the guide d
 
 Check which Windows build you are on and make sure there is enough room for developer tooling before any of it gets installed.
 
-Open **PowerShell** from the Start menu. It may initially be the built-in Windows PowerShell 5.1; that is fine for the first few commands.
+Open **Windows PowerShell** from the Start menu. This is the built-in PowerShell 5.1; that is fine for the first few phases.
 
 Check Windows:
+
+**Run in: PowerShell**
 
 ```powershell
 winver
 ```
 
 Check disk space:
+
+**Run in: PowerShell**
 
 ```powershell
 Get-Volume C | Select-Object DriveLetter, @{Name="FreeGB";Expression={[math]::Round($_.SizeRemaining/1GB,1)}}
@@ -115,6 +140,8 @@ For a normal development workstation, have **at least ~20 GB free** before start
 ### 2. Confirm `winget`
 
 Verify the package manager works, because nearly every install in this guide goes through it. `winget` is Windows Package Manager; for this setup it plays roughly the role Homebrew plays on macOS.
+
+**Run in: PowerShell**
 
 ```powershell
 winget --version
@@ -128,11 +155,15 @@ If `winget` is missing or blocked on a corporate machine, **stop trying to boots
 
 Useful discovery command:
 
+**Run in: PowerShell**
+
 ```powershell
 winget search <name>
 ```
 
 When this guide gives a package ID, prefer exact installs:
+
+**Run in: PowerShell**
 
 ```powershell
 winget install --id <PACKAGE_ID> --exact
@@ -148,11 +179,15 @@ Install Git and set up SSH so this machine authenticates to GitHub the way a mac
 
 Install Git itself and confirm the shell can see it.
 
+**Run in: PowerShell**
+
 ```powershell
 winget install --id Git.Git --exact
 ```
 
 Close and reopen the shell if `git` is not immediately visible, then verify:
+
+**Run in: PowerShell**
 
 ```powershell
 git --version
@@ -166,11 +201,15 @@ Create the SSH keypair that will identify this machine to GitHub.
 
 Check OpenSSH:
 
+**Run in: PowerShell**
+
 ```powershell
 ssh -V
 ```
 
 Generate an Ed25519 key:
+
+**Run in: PowerShell**
 
 ```powershell
 ssh-keygen -t ed25519 -C "YOUR_GITHUB_EMAIL"
@@ -185,6 +224,8 @@ C:\Users\<username>\.ssh\id_ed25519
 Use a passphrase unless your organization's credential policy specifies another approach.
 
 Verify:
+
+**Run in: PowerShell**
 
 ```powershell
 Get-ChildItem $HOME\.ssh
@@ -205,18 +246,22 @@ Turn on the built-in Windows service that holds your key in memory, so you are n
 
 Check it:
 
+**Run in: PowerShell**
+
 ```powershell
 Get-Service ssh-agent
 ```
 
 If the service is stopped, the normal setup is:
 
+**Run in: PowerShell as Administrator**
+
 ```powershell
 Set-Service -Name ssh-agent -StartupType Automatic
 Start-Service ssh-agent
 ```
 
-This may require an Administrator PowerShell session.
+Changing a service's startup type requires an Administrator PowerShell session on most machines.
 
 #### If corporate policy denies this
 
@@ -230,11 +275,15 @@ Some organizations lock down Windows services; the answer is to ask which authen
 
 Once the agent is available, load the key:
 
+**Run in: PowerShell**
+
 ```powershell
 ssh-add $HOME\.ssh\id_ed25519
 ```
 
 Verify:
+
+**Run in: PowerShell**
 
 ```powershell
 ssh-add -l
@@ -245,6 +294,8 @@ ssh-add -l
 Register the public half of the key with your GitHub account so GitHub accepts connections from this machine.
 
 Copy it to the Windows clipboard:
+
+**Run in: PowerShell**
 
 ```powershell
 Get-Content $HOME\.ssh\id_ed25519.pub | Set-Clipboard
@@ -262,6 +313,8 @@ If your organization uses GitHub Enterprise, SSO authorization, SSH certificates
 
 Confirm the whole chain — key, agent, GitHub — works before trying to clone anything.
 
+**Run in: PowerShell**
+
 ```powershell
 ssh -T git@github.com
 ```
@@ -278,7 +331,9 @@ Hi YOUR_USERNAME! You've successfully authenticated, but GitHub does not provide
 
 Some corporate networks block outbound SSH on TCP/22; GitHub supports SSH over the HTTPS port instead. Before changing anything, confirm that using this route is allowed by company policy.
 
-A typical `~/.ssh/config` entry is:
+A typical entry is:
+
+**File contents — add to `~/.ssh/config`, not a command**
 
 ```text
 Host github.com
@@ -288,6 +343,8 @@ Host github.com
 ```
 
 Test again:
+
+**Run in: PowerShell**
 
 ```powershell
 ssh -T git@github.com
@@ -299,12 +356,16 @@ A proxy can still interfere with this. If it fails, involve IT/network engineeri
 
 Tell Git who you are so commits are attributed correctly.
 
+**Run in: PowerShell**
+
 ```powershell
 git config --global user.name "YOUR NAME"
 git config --global user.email "YOUR_GITHUB_EMAIL"
 ```
 
 Verify:
+
+**Run in: PowerShell**
 
 ```powershell
 git config --global --list
@@ -337,17 +398,23 @@ Examples:
 
 Create the root:
 
+**Run in: PowerShell**
+
 ```powershell
 New-Item -ItemType Directory -Force $HOME\code\github
 ```
 
 Create an owner/org directory:
 
+**Run in: PowerShell**
+
 ```powershell
 New-Item -ItemType Directory -Force $HOME\code\github\YOUR_GITHUB_USERNAME
 ```
 
 Clone with SSH:
+
+**Run in: PowerShell**
 
 ```powershell
 cd $HOME\code\github\YOUR_GITHUB_USERNAME
@@ -357,6 +424,8 @@ git clone git@github.com:YOUR_GITHUB_USERNAME/YOUR_REPO.git
 PowerShell understands `~` and `$HOME`, so paths can remain conceptually similar to macOS.
 
 To open the current directory in Windows File Explorer:
+
+**Run in: PowerShell**
 
 ```powershell
 explorer .
@@ -384,11 +453,15 @@ Windows PowerShell 5.1 and PowerShell 7 are separate products. Installing PowerS
 
 Install:
 
+**Run in: PowerShell**
+
 ```powershell
 winget install --id Microsoft.PowerShell --exact
 ```
 
 Verify:
+
+**Run in: PowerShell**
 
 ```powershell
 pwsh -Version
@@ -398,9 +471,9 @@ From this point forward, the intended development shell is **PowerShell 7 (`pwsh
 
 ### 11. Install or update Windows Terminal
 
-Install the terminal application and make PowerShell 7 its default shell.
+Install the Terminal application and make PowerShell 7 its default shell.
 
-Windows Terminal is the **terminal application**; PowerShell 7 is the **shell running inside it**.
+Windows Terminal — shown as just **Terminal** in the Start menu — is the **terminal application**; PowerShell 7 is the **shell running inside it**.
 
 macOS analogy:
 
@@ -410,6 +483,8 @@ zsh                    ≈  PowerShell 7
 ```
 
 Install or update:
+
+**Run in: PowerShell**
 
 ```powershell
 winget install --id Microsoft.WindowsTerminal --exact
@@ -429,20 +504,22 @@ Set:
 Default profile: PowerShell
 ```
 
-Make sure the opened shell reports:
+Then open a new Terminal tab and make sure the shell it starts reports major version `7`:
+
+**Run in: Terminal (PowerShell 7)**
 
 ```powershell
 $PSVersionTable.PSVersion
 ```
 
-with major version `7`.
-
 Do not confuse:
 
-- **Windows Terminal** — terminal emulator/application;
+- **Windows Terminal** — terminal emulator/application; appears in the Start menu as **Terminal**;
 - **PowerShell 7** — modern shell;
 - **Windows PowerShell 5.1** — legacy Windows shell;
 - **Command Prompt** — `cmd.exe`.
+
+From here on, every command runs inside the Terminal app with its PowerShell 7 default profile.
 
 ---
 
@@ -456,6 +533,8 @@ Install the `uv` binary itself; everything Python-related in this guide flows th
 
 Install with Windows Package Manager:
 
+**Run in: Terminal (PowerShell 7)**
+
 ```powershell
 winget install --id astral-sh.uv --exact
 ```
@@ -463,6 +542,8 @@ winget install --id astral-sh.uv --exact
 Restart Terminal after installation if necessary.
 
 Verify:
+
+**Run in: Terminal (PowerShell 7)**
 
 ```powershell
 uv --version
@@ -478,11 +559,15 @@ Use `uv` to install a real Python interpreter and make sure `python` on the comm
 
 For a compatibility-oriented baseline:
 
+**Run in: Terminal (PowerShell 7)**
+
 ```powershell
 uv python install 3.12 --default
 ```
 
 See what `uv` knows about:
+
+**Run in: Terminal (PowerShell 7)**
 
 ```powershell
 uv python list
@@ -490,11 +575,15 @@ uv python list
 
 If:
 
+**Run in: Terminal (PowerShell 7)**
+
 ```powershell
 python --version
 ```
 
 still opens the Microsoft Store alias or says Python cannot be found, run:
+
+**Run in: Terminal (PowerShell 7)**
 
 ```powershell
 uv python update-shell
@@ -503,6 +592,8 @@ uv python update-shell
 Then **close Terminal completely and reopen it**.
 
 Verify:
+
+**Run in: Terminal (PowerShell 7)**
 
 ```powershell
 python --version
@@ -514,11 +605,15 @@ A project is free to require a different Python version. Follow the repository's
 
 Install IPython once, globally, so a good interactive Python shell is always available regardless of which project you are in.
 
+**Run in: Terminal (PowerShell 7)**
+
 ```powershell
 uv tool install ipython
 ```
 
 Verify:
+
+**Run in: Terminal (PowerShell 7)**
 
 ```powershell
 ipython --version
@@ -540,12 +635,16 @@ Do **not** put a general `.venv` in your home directory.
 
 Inside a repository:
 
+**Run in: Terminal (PowerShell 7)**
+
 ```powershell
 cd $HOME\code\github\YOUR_ORG\YOUR_REPO
 uv venv
 ```
 
 PowerShell activation:
+
+**Run in: Terminal (PowerShell 7)**
 
 ```powershell
 . .\.venv\Scripts\Activate.ps1
@@ -557,17 +656,23 @@ Activation is itself a PowerShell script, so it is subject to the machine's exec
 
 Inspect policy first:
 
+**Run in: Terminal (PowerShell 7)**
+
 ```powershell
 Get-ExecutionPolicy -List
 ```
 
 On a personal machine, a common user-scoped setting is:
 
+**Run in: Terminal (PowerShell 7)**
+
 ```powershell
 Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ```
 
 Then retry:
+
+**Run in: Terminal (PowerShell 7)**
 
 ```powershell
 . .\.venv\Scripts\Activate.ps1
@@ -578,6 +683,8 @@ Then retry:
 On managed machines the execution policy may not be yours to change. If `MachinePolicy` or `UserPolicy` is set by Group Policy, **do not bypass it** with `Bypass`, unsigned-script tricks, or machine-wide changes. Ask IT/dev-infrastructure for the supported Python environment workflow.
 
 Also remember that many `uv` commands do **not require manual activation**. For example, depending on the repository:
+
+**Run in: Terminal (PowerShell 7)**
 
 ```powershell
 uv run python script.py
@@ -593,11 +700,15 @@ Populate the environment from the project's lock file when one exists, or ad hoc
 
 If the repository already has a `pyproject.toml` / `uv.lock`, prefer the repository-defined workflow:
 
+**Run in: Terminal (PowerShell 7)**
+
 ```powershell
 uv sync
 ```
 
 For an ad-hoc environment without a project dependency file:
+
+**Run in: Terminal (PowerShell 7)**
 
 ```powershell
 uv pip install pandas numpy scikit-learn requests docopt beautifulsoup4 docling
@@ -629,6 +740,8 @@ Install the whole toolkit in one pass, then verify each command answers.
 
 Install:
 
+**Run in: Terminal (PowerShell 7)**
+
 ```powershell
 winget install --id BurntSushi.ripgrep.MSVC --exact
 winget install --id sharkdp.fd --exact
@@ -642,6 +755,8 @@ winget install --id ajeetdsouza.zoxide --exact
 Restart Terminal if newly installed commands are not found.
 
 Verify:
+
+**Run in: Terminal (PowerShell 7)**
 
 ```powershell
 rg --version
@@ -689,6 +804,8 @@ Make the shell prompt informative and good-looking with Oh My Posh and a Nerd Fo
 
 Install the prompt engine; the profile in Phase 9 will activate it at shell startup.
 
+**Run in: Terminal (PowerShell 7)**
+
 ```powershell
 winget install --id JanDeDobbeleer.OhMyPosh --exact
 ```
@@ -697,6 +814,8 @@ Restart Terminal if necessary.
 
 Verify:
 
+**Run in: Terminal (PowerShell 7)**
+
 ```powershell
 oh-my-posh version
 ```
@@ -704,6 +823,8 @@ oh-my-posh version
 ### 19. Install a Nerd Font
 
 Install a patched font so the prompt's glyphs and icons render correctly, then select it in Windows Terminal.
+
+**Run in: Terminal (PowerShell 7)**
 
 ```powershell
 oh-my-posh font install meslo
@@ -727,7 +848,7 @@ If corporate policy prevents user-installed fonts, skip this customization and u
 
 ## Phase 9 — Version-controlled PowerShell profile
 
-Store your shell configuration in your dotfiles repository so it is versioned, portable, and easy to restore on the next machine.
+Store your shell configuration in your dotfiles repository so it is versioned, portable, and easy to restore on the next machine. Run everything in this phase inside **Terminal with PowerShell 7** — PowerShell 5.1 and 7 keep separate `$PROFILE` files, and this guide configures the PowerShell 7 one.
 
 There are two reasonable ways to keep PowerShell configuration in a dotfiles repository:
 
@@ -748,12 +869,16 @@ Recommended repository file:
 
 Use:
 
+**Run in: Terminal (PowerShell 7)**
+
 ```powershell
 New-Item -ItemType Directory -Force $HOME\code\github\YOUR_GITHUB_USERNAME\dotfiles\powershell
 notepad $HOME\code\github\YOUR_GITHUB_USERNAME\dotfiles\powershell\profile.ps1
 ```
 
 Suggested contents:
+
+**File contents — this is the body of `profile.ps1`, not commands to type into a shell**
 
 ```powershell
 # PowerShell development profile
@@ -888,11 +1013,15 @@ Make the real `$PROFILE` a one-line loader that dot-sources the repo file. This 
 
 Find the PowerShell 7 profile location:
 
+**Run in: Terminal (PowerShell 7)**
+
 ```powershell
 $PROFILE
 ```
 
 Create it:
+
+**Run in: Terminal (PowerShell 7)**
 
 ```powershell
 New-Item -ItemType File -Path $PROFILE -Force
@@ -900,11 +1029,15 @@ New-Item -ItemType File -Path $PROFILE -Force
 
 Open it:
 
+**Run in: Terminal (PowerShell 7)**
+
 ```powershell
 notepad $PROFILE
 ```
 
 Its **entire contents** should be:
+
+**File contents — this is the whole body of `$PROFILE`, not a command**
 
 ```powershell
 . "$HOME\code\github\YOUR_GITHUB_USERNAME\dotfiles\powershell\profile.ps1"
@@ -913,6 +1046,8 @@ Its **entire contents** should be:
 Notice that the repository target is named `profile.ps1`, **not** `Microsoft.PowerShell_profile.ps1`. Keeping the filenames distinct makes accidental self-recursion obvious and unlikely.
 
 Reload:
+
+**Run in: Terminal (PowerShell 7)**
 
 ```powershell
 . $PROFILE
@@ -932,11 +1067,15 @@ Enable Developer Mode only if permitted:
 
 Then, after ensuring `$PROFILE` is not needed as a separate real file:
 
+**Run in: Terminal (PowerShell 7)**
+
 ```powershell
 Remove-Item $PROFILE -ErrorAction SilentlyContinue
 ```
 
 Create the link:
+
+**Run in: Terminal (PowerShell 7)** — as Administrator unless Developer Mode is enabled
 
 ```powershell
 New-Item `
@@ -946,6 +1085,8 @@ New-Item `
 ```
 
 Verify:
+
+**Run in: Terminal (PowerShell 7)**
 
 ```powershell
 Get-Item $PROFILE | Format-List FullName,LinkType,Target
@@ -974,6 +1115,8 @@ Close **all** Terminal windows. Reopen **Terminal** normally.
 
 Run:
 
+**Run in: Terminal (PowerShell 7)**
+
 ```powershell
 $PSVersionTable.PSVersion
 git --version
@@ -994,6 +1137,8 @@ Get-Command ll
 
 Check the profile:
 
+**Run in: Terminal (PowerShell 7)**
+
 ```powershell
 $PROFILE
 Get-Content $PROFILE
@@ -1001,11 +1146,15 @@ Get-Content $PROFILE
 
 If using a symlink:
 
+**Run in: Terminal (PowerShell 7)**
+
 ```powershell
 Get-Item $PROFILE | Select-Object LinkType,Target
 ```
 
 Open a repository and check Git helpers:
+
+**Run in: Terminal (PowerShell 7)**
 
 ```powershell
 cd $HOME\code\github\YOUR_ORG\YOUR_REPO
@@ -1014,11 +1163,15 @@ gs
 
 Try directory navigation:
 
+**Run in: Terminal (PowerShell 7)**
+
 ```powershell
 z YOUR_REPO
 ```
 
 Open the current directory in Explorer:
+
+**Run in: Terminal (PowerShell 7)**
 
 ```powershell
 explorer .
@@ -1030,13 +1183,15 @@ At this point the baseline setup is complete.
 
 ## Troubleshooting quick reference
 
-The symptoms you are most likely to hit, each with its usual cause and fix. Every entry is self-contained — jump straight to the one that matches.
+The symptoms you are most likely to hit, each with its usual cause and fix. Every entry is self-contained — jump straight to the one that matches. Troubleshooting commands are labeled **Run in: PowerShell** because any PowerShell window works, whatever stage of setup you are at; if Terminal is already configured, just use Terminal.
 
 ### `winget` says no package found
 
 The package ID probably differs in your configured `winget` source.
 
 Search first:
+
+**Run in: PowerShell**
 
 ```powershell
 winget search ripgrep
@@ -1054,6 +1209,8 @@ Close **all** Terminal windows and reopen Terminal.
 
 Then:
 
+**Run in: PowerShell**
+
 ```powershell
 Get-Command <COMMAND>
 where.exe <COMMAND>
@@ -1065,17 +1222,23 @@ The Microsoft Store alias is still winning over the `uv`-managed Python.
 
 Check:
 
+**Run in: PowerShell**
+
 ```powershell
 uv python list
 ```
 
 Then:
 
+**Run in: PowerShell**
+
 ```powershell
 uv python update-shell
 ```
 
 Restart Terminal and retry:
+
+**Run in: PowerShell**
 
 ```powershell
 python --version
@@ -1087,11 +1250,15 @@ The PowerShell execution policy is blocking the activation script.
 
 Inspect:
 
+**Run in: PowerShell**
+
 ```powershell
 Get-ExecutionPolicy -List
 ```
 
 Personal machine:
+
+**Run in: PowerShell**
 
 ```powershell
 Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
@@ -1102,6 +1269,8 @@ Corporate machine: if policy is organization-enforced, ask IT. Do not use `Bypas
 ### `ssh-agent` configuration says `Access is denied`
 
 The service configuration may require an elevated shell.
+
+**Run in: PowerShell** — this command opens the elevated window
 
 ```powershell
 Start-Process pwsh -Verb RunAs
@@ -1116,6 +1285,8 @@ On a corporate machine, if elevation is unavailable or policy blocks the service
 The corporate network is interfering somewhere between the machine and GitHub; verbose SSH output shows where.
 
 Collect:
+
+**Run in: PowerShell**
 
 ```powershell
 ssh -vT git@github.com
@@ -1135,7 +1306,9 @@ GitHub supports SSH on port 443, but use it only when allowed by company policy.
 
 The default Terminal profile is still pointing at the legacy shell.
 
-Check:
+Check what the Terminal window actually opened:
+
+**Run in: Terminal**
 
 ```powershell
 $PSVersionTable.PSVersion
@@ -1155,6 +1328,8 @@ The prompt initialization is pointing at a theme path that does not exist.
 
 Prefer a built-in theme name:
 
+**File contents — use this line in `profile.ps1`**
+
 ```powershell
 oh-my-posh init pwsh --config "jandedobbeleer" | Invoke-Expression
 ```
@@ -1167,11 +1342,15 @@ This is almost always profile recursion — the profile is loading itself.
 
 Start PowerShell without loading the profile:
 
+**Run in: PowerShell**
+
 ```powershell
 pwsh -NoProfile
 ```
 
 Then inspect:
+
+**Run in: PowerShell**
 
 ```powershell
 $PROFILE
@@ -1193,6 +1372,8 @@ A nearly full disk shows up as unrelated-looking errors.
 
 Check:
 
+**Run in: PowerShell**
+
 ```powershell
 Get-Volume C | Select-Object DriveLetter, @{Name="FreeGB";Expression={[math]::Round($_.SizeRemaining/1GB,1)}}
 ```
@@ -1207,9 +1388,11 @@ How to help a Group A teammate remotely without making their machine worse: gath
 
 ### Remote diagnostics
 
-Ask the teammate to paste the output of these small, non-destructive commands before suggesting any changes.
+Ask the teammate to paste the output of these small, non-destructive commands before suggesting any changes. Any PowerShell window works.
 
 General state:
+
+**Run in: PowerShell**
 
 ```powershell
 $PSVersionTable
@@ -1223,6 +1406,8 @@ Get-Volume C | Select-Object DriveLetter, @{Name="FreeGB";Expression={[math]::Ro
 
 For a missing command:
 
+**Run in: PowerShell**
+
 ```powershell
 Get-Command <COMMAND> -ErrorAction SilentlyContinue
 where.exe <COMMAND>
@@ -1231,6 +1416,8 @@ winget list
 
 For SSH:
 
+**Run in: PowerShell**
+
 ```powershell
 Get-Service ssh-agent
 ssh-add -l
@@ -1238,6 +1425,8 @@ ssh -vT git@github.com
 ```
 
 For the PowerShell profile:
+
+**Run in: PowerShell**
 
 ```powershell
 $PROFILE
